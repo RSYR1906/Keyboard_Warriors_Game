@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Type Battle — Typing Combat Game",
-  description: "A typing battle game where you fight CPU opponents using typing speed and accuracy",
+  title: "Keyboard Warriors — Typing Combat Game",
+  description: "A typing combat game where you fight CPU opponents using typing speed and accuracy",
 };
 
 export default function RootLayout({ children }) {

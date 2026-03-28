@@ -340,14 +340,35 @@ function TypingDemo({ onFirstKeystroke }) {
 
 export default function MainMenu() {
   const router = useRouter();
-  const { playClick, playModeSelect } = useAudio();
+  const { playClick, playModeSelect, playMenuBGM, stopMenuBGM } = useAudio();
   const [playerName, setPlayerName] = useState("");
+  const menuMusicStarted = useRef(false);
 
   // Load saved name on mount
   useEffect(() => {
     const saved = localStorage.getItem(PLAYER_NAME_KEY);
     if (saved) setPlayerName(saved);
   }, []);
+
+  // Stop menu music on unmount (navigation away)
+  useEffect(() => {
+    return () => stopMenuBGM();
+  }, [stopMenuBGM]);
+
+  // Start menu music on any user interaction (click/key)
+  useEffect(() => {
+    const start = () => {
+      if (menuMusicStarted.current) return;
+      menuMusicStarted.current = true;
+      playMenuBGM();
+    };
+    window.addEventListener("click", start, { once: true });
+    window.addEventListener("keydown", start, { once: true });
+    return () => {
+      window.removeEventListener("click", start);
+      window.removeEventListener("keydown", start);
+    };
+  }, [playMenuBGM]);
 
   const handleNameChange = (e) => {
     const name = e.target.value.slice(0, 16);
@@ -356,6 +377,7 @@ export default function MainMenu() {
   };
 
   const handleModeSelect = (mode) => {
+    stopMenuBGM();
     playModeSelect();
     if (mode === "story") {
       router.push("/stages");
@@ -377,8 +399,8 @@ export default function MainMenu() {
           className="text-center mb-12"
         >
           <h1 className="text-5xl md:text-7xl font-bold mb-3">
-            <span className="text-cyan-400">Type</span>{" "}
-            <span className="text-white">Battle</span>
+            <span className="text-cyan-400">Keyboard</span>{" "}
+            <span className="text-white">Warriors</span>
           </h1>
           <motion.div
             initial={{ width: 0 }}

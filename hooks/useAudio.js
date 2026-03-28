@@ -2,6 +2,7 @@
 
 import {
     EpicBGM,
+    SpaceMenuBGM,
     generateAttack,
     generateClick,
     generateHit,
@@ -20,6 +21,7 @@ import { useCallback, useEffect, useRef } from "react";
 export function useAudio() {
   const buffers = useRef({});
   const bgmRef = useRef(null);
+  const menuBgmRef = useRef(null);
   const initialized = useRef(false);
 
   // Build all audio buffers once the AudioContext exists
@@ -38,6 +40,7 @@ export function useAudio() {
     };
 
     bgmRef.current = new EpicBGM(ctx);
+    menuBgmRef.current = new SpaceMenuBGM(ctx);
   }, []);
 
   // Initialize on mount
@@ -46,6 +49,7 @@ export function useAudio() {
     return () => {
       // Cleanup BGM on unmount
       if (bgmRef.current) bgmRef.current.stop();
+      if (menuBgmRef.current) menuBgmRef.current.stop();
     };
   }, [ensureInit]);
 
@@ -95,5 +99,14 @@ export function useAudio() {
     if (bgmRef.current) bgmRef.current.stop();
   }, []);
 
-  return { playTyping, playClick, playModeSelect, playAttack, playHit, playBGM, stopBGM };
+  const playMenuBGM = useCallback(() => {
+    ensureReady();
+    if (menuBgmRef.current) menuBgmRef.current.start(0.18);
+  }, [ensureReady]);
+
+  const stopMenuBGM = useCallback(() => {
+    if (menuBgmRef.current) menuBgmRef.current.stop();
+  }, []);
+
+  return { playTyping, playClick, playModeSelect, playAttack, playHit, playBGM, stopBGM, playMenuBGM, stopMenuBGM };
 }
