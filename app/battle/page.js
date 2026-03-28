@@ -61,19 +61,21 @@ function BattleContent() {
   // ── Load player name from localStorage ─────────────────
   useEffect(() => {
     const saved = localStorage.getItem(PLAYER_NAME_KEY);
-    if (saved) setPlayerName(saved);
+    if (saved) queueMicrotask(() => setPlayerName(saved));
   }, []);
 
   // ── Initialize game on mount ───────────────────────────
   useEffect(() => {
     if (initialized) return;
-    setInitialized(true);
-    game.initGame({
-      mode: urlMode,
-      difficulty: urlDifficulty,
-      stage: urlStage,
+    queueMicrotask(() => {
+      setInitialized(true);
+      game.initGame({
+        mode: urlMode,
+        difficulty: urlDifficulty,
+        stage: urlStage,
+      });
+      setPhase(urlMode === "story" ? "splash" : "active");
     });
-    setPhase(urlMode === "story" ? "splash" : "active");
   }, [initialized, game, urlMode, urlDifficulty, urlStage]);
 
   // ── BGM lifecycle ──────────────────────────────────────
@@ -91,16 +93,18 @@ function BattleContent() {
     playerFinishedRef.current = false;
     cpuFinishedRef.current = false;
 
-    setCurrentText(
-      getPromptText(urlMode, {
-        difficulty: urlDifficulty,
-        stage: urlStage,
-        sentenceIdx,
-      }),
-    );
-    setCpuResult(null);
-    setPlayerResult(null);
-    setCpuProgress(0);
+    queueMicrotask(() => {
+      setCurrentText(
+        getPromptText(urlMode, {
+          difficulty: urlDifficulty,
+          stage: urlStage,
+          sentenceIdx,
+        }),
+      );
+      setCpuResult(null);
+      setPlayerResult(null);
+      setCpuProgress(0);
+    });
   }, [phase, sentenceIdx, urlMode, urlDifficulty, urlStage]);
 
   // ── CPU simulation ─────────────────────────────────────

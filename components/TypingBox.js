@@ -24,7 +24,7 @@ export default function TypingBox({
     <div className="w-full max-w-3xl mx-auto">
       {/* Target text display */}
       <div
-        className={`relative border rounded-xl p-6 mb-4 font-mono text-lg md:text-xl leading-relaxed tracking-wide cursor-text min-h-[80px] select-none transition-all duration-300 ${
+        className={`relative border rounded-xl p-6 mb-4 font-mono text-lg md:text-xl leading-relaxed tracking-wide cursor-text min-h-20 select-none transition-all duration-300 ${
           isReady && !isComplete
             ? "bg-yellow-900/30 border-yellow-500/70 shadow-[0_0_15px_rgba(250,204,21,0.2)]"
             : isComplete
@@ -50,7 +50,7 @@ export default function TypingBox({
             <span key={i} className="relative">
               {isCursor && !isComplete && (
                 <motion.span
-                  className="absolute left-0 top-0 bottom-0 w-[2px] bg-yellow-400"
+                  className="absolute left-0 top-0 bottom-0 w-0.5 bg-yellow-400"
                   animate={{ opacity: [1, 0] }}
                   transition={{ duration: 0.6, repeat: Infinity, repeatType: "reverse" }}
                 />

@@ -3,13 +3,13 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
-import PlayerCharacter from "./characters/PlayerCharacter";
 import EnemyCharacter, { getEnemyConfig } from "./characters/EnemyCharacter";
+import PlayerCharacter from "./characters/PlayerCharacter";
 import {
-  SwordClashEffect,
-  SlashEffect,
-  HitImpactEffect,
-  AmbientParticles,
+    AmbientParticles,
+    HitImpactEffect,
+    SlashEffect,
+    SwordClashEffect,
 } from "./effects/BattleEffects";
 
 // ── Animation variants ────────────────────────────────────────
@@ -112,11 +112,11 @@ export default function BattleArena({
 
   useEffect(() => {
     if (playerAttacking || cpuAttacking) {
-      setShowClash(true);
+      queueMicrotask(() => setShowClash(true));
       const hideTimer = setTimeout(() => setShowClash(false), 400);
       return () => { clearTimeout(hideTimer); };
     }
-    setShowClash(false);
+    queueMicrotask(() => setShowClash(false));
   }, [playerAttacking, cpuAttacking]);
 
   return (

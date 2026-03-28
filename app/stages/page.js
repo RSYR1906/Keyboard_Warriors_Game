@@ -34,7 +34,7 @@ export default function StageSelect() {
   const [unlockedStage, setUnlockedStage] = useState(1);
 
   useEffect(() => {
-    setUnlockedStage(getUnlockedStage());
+    queueMicrotask(() => setUnlockedStage(getUnlockedStage()));
   }, []);
 
   const handleStageClick = (stage) => {
@@ -87,7 +87,7 @@ export default function StageSelect() {
                 className={`
                   relative flex flex-col items-center p-4 rounded-xl border-2 transition-all duration-300
                   ${isUnlocked
-                    ? `bg-gradient-to-b ${colors.bg} ${colors.border} cursor-pointer hover:shadow-lg hover:shadow-cyan-500/10`
+                    ? `bg-linear-to-b ${colors.bg} ${colors.border} cursor-pointer hover:shadow-lg hover:shadow-cyan-500/10`
                     : "bg-gray-900/80 border-gray-800 cursor-not-allowed opacity-50"
                   }
                 `}
@@ -153,7 +153,7 @@ export default function StageSelect() {
           </div>
           <div className="w-48 h-2 bg-gray-800 rounded-full overflow-hidden mt-2 mx-auto border border-gray-700">
             <motion.div
-              className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full"
+              className="h-full bg-linear-to-r from-cyan-500 to-emerald-500 rounded-full"
               initial={{ width: 0 }}
               animate={{ width: `${Math.min((unlockedStage - 1) / 10, 1) * 100}%` }}
               transition={{ delay: 0.8, duration: 0.8 }}

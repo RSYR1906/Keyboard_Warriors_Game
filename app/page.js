@@ -168,7 +168,7 @@ function pickRandom(exclude) {
 // ── Mini typing demo widget ───────────────────────────────────
 function TypingDemo({ onFirstKeystroke }) {
   const { playHit } = useAudio();
-  const [target, setTarget] = useState(() => pickRandom());
+  const [target, setTarget] = useState(DEMO_WORDS[0]);
   const [input, setInput] = useState("");
   const [streak, setStreak] = useState(0);
   const [wpm, setWpm] = useState(0);
@@ -180,8 +180,11 @@ function TypingDemo({ onFirstKeystroke }) {
   const [focused, setFocused] = useState(false);
   const hasTyped = useRef(false);
 
-  // Auto-focus on mount
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  // Pick a random word + auto-focus on mount (client only)
+  useEffect(() => {
+    queueMicrotask(() => setTarget(pickRandom()));
+    inputRef.current?.focus();
+  }, []);
 
   const advanceWord = useCallback(() => {
     playHit();
@@ -347,7 +350,7 @@ export default function MainMenu() {
   // Load saved name on mount
   useEffect(() => {
     const saved = localStorage.getItem(PLAYER_NAME_KEY);
-    if (saved) setPlayerName(saved);
+    if (saved) queueMicrotask(() => setPlayerName(saved));
   }, []);
 
   // Stop menu music on unmount (navigation away)
