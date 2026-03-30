@@ -42,6 +42,14 @@ const hitShake = {
 };
 
 // ── Background layers ─────────────────────────────────────────
+const ARENA_STARS = Array.from({ length: 50 }, (_, i) => ({
+  id: i,
+  left: `${(i * 37 + 13) % 100}%`,
+  top: `${(i * 23 + 7) % 45}%`,
+  duration: 2 + (i % 3),
+  delay: i * 0.15,
+}));
+
 function ArenaBackground() {
   return (
     <>
@@ -50,11 +58,11 @@ function ArenaBackground() {
 
       {/* Stars */}
       <div className="absolute inset-0 overflow-hidden">
-        {[...Array(50)].map((_, i) => (
-          <motion.div key={i} className="absolute w-0.5 h-0.5 bg-white rounded-full"
-            style={{ left: `${(i * 37 + 13) % 100}%`, top: `${(i * 23 + 7) % 45}%` }}
+        {ARENA_STARS.map((s) => (
+          <motion.div key={s.id} className="absolute w-0.5 h-0.5 bg-white rounded-full"
+            style={{ left: s.left, top: s.top }}
             animate={{ opacity: [0.2, 0.9, 0.2] }}
-            transition={{ duration: 2 + (i % 3), repeat: Infinity, delay: i * 0.15 }}
+            transition={{ duration: s.duration, repeat: Infinity, delay: s.delay }}
           />
         ))}
       </div>

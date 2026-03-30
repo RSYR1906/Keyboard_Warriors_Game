@@ -10,15 +10,15 @@ import { useAudio } from "@/hooks/useAudio";
 import { useBattleAnimations } from "@/hooks/useBattleAnimations";
 import { useTyping } from "@/hooks/useTyping";
 import { resolveBattleRound } from "@/lib/battleResolver";
+import { PLAYER_NAME_KEY } from "@/lib/constants";
 import { getCpuConfig, MAX_HP } from "@/lib/cpuDifficulty";
 import { simulateCPU } from "@/lib/cpuEngine";
 import { getPromptText, getStageInfo } from "@/lib/gameEngine";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { memo, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 // ── Constants ────────────────────────────────────────────────
-const PLAYER_NAME_KEY = "typebattle_player_name";
 const CPU_PROGRESS_INTERVAL = 50;
 
 function BattleContent() {
@@ -345,7 +345,7 @@ function BattleContent() {
 
 // ── Small presentational sub-components ──────────────────────
 
-function ModeInfoBar({ urlMode, urlStage, urlDifficulty, round, playerWins, cpuWins }) {
+const ModeInfoBar = memo(function ModeInfoBar({ urlMode, urlStage, urlDifficulty, round, playerWins, cpuWins }) {
   return (
     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-3">
       <div className="text-sm font-mono text-gray-300/80 uppercase tracking-wider mb-1 drop-shadow-md">
@@ -360,9 +360,9 @@ function ModeInfoBar({ urlMode, urlStage, urlDifficulty, round, playerWins, cpuW
       )}
     </motion.div>
   );
-}
+});
 
-function CpuProgressBar({ progress }) {
+const CpuProgressBar = memo(function CpuProgressBar({ progress }) {
   return (
     <div className="mt-4 w-full">
       <div className="flex justify-between text-xs text-gray-400 mb-1 drop-shadow-md">
@@ -378,9 +378,9 @@ function CpuProgressBar({ progress }) {
       </div>
     </div>
   );
-}
+});
 
-function PlayerStats({ result }) {
+const PlayerStats = memo(function PlayerStats({ result }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -391,7 +391,7 @@ function PlayerStats({ result }) {
       <span className="text-emerald-400">Accuracy: {result.accuracy}%</span>
     </motion.div>
   );
-}
+});
 
 // ── Page wrapper with Suspense ───────────────────────────────
 

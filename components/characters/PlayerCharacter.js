@@ -1,13 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { memo } from "react";
 
 /**
  * PlayerCharacter — Armored Knight with Greatsword (SVG).
  *
  * @param {{ isAttacking: boolean, isHit: boolean }} props
  */
-export default function PlayerCharacter({ isAttacking, isHit }) {
+export default memo(function PlayerCharacter({ isAttacking, isHit }) {
   return (
     <svg viewBox="0 0 140 200" width="140" height="200" className="drop-shadow-2xl">
       {/* Cape — flowing behind */}
@@ -102,4 +103,4 @@ export default function PlayerCharacter({ isAttacking, isHit }) {
       </defs>
     </svg>
   );
-}
+});

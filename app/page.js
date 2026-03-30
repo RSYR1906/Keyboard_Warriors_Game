@@ -3,12 +3,11 @@
 import GameLayout from "@/components/GameLayout";
 import ModeSelector from "@/components/ModeSelector";
 import { useAudio } from "@/hooks/useAudio";
+import { PLAYER_NAME_KEY } from "@/lib/constants";
 import { wordBank } from "@/lib/wordBank";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-const PLAYER_NAME_KEY = "typebattle_player_name";
 
 // ── Grab a flat pool of medium words for the demo ─────────────
 const DEMO_WORDS = wordBank.words.medium;

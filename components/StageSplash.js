@@ -1,11 +1,12 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { memo } from "react";
 
 /**
  * StageSplash — 2-second animated stage title shown before each Story Mode stage.
  */
-export default function StageSplash({ stage, title, visible, onComplete }) {
+export default memo(function StageSplash({ stage, title, visible, onComplete }) {
   return (
     <AnimatePresence mode="wait" onExitComplete={onComplete}>
       {visible && (
@@ -58,4 +59,4 @@ export default function StageSplash({ stage, title, visible, onComplete }) {
       )}
     </AnimatePresence>
   );
-}
+});

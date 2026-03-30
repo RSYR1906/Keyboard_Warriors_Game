@@ -1,5 +1,6 @@
 "use client";
 
+import { STORY_ENEMIES } from "@/components/characters/EnemyCharacter";
 import GameLayout from "@/components/GameLayout";
 import { useAudio } from "@/hooks/useAudio";
 import { CPU_STAGES } from "@/lib/cpuDifficulty";
@@ -21,11 +22,6 @@ const STAGE_COLORS = [
   { bg: "from-red-900 to-red-950", border: "border-red-500/50", text: "text-red-300" },
   { bg: "from-indigo-900 to-indigo-950", border: "border-indigo-400/50", text: "text-indigo-300" },
   { bg: "from-yellow-800 to-yellow-950", border: "border-yellow-500/50", text: "text-yellow-300" },
-];
-
-const STAGE_ENEMIES = [
-  "Wild Wolf", "Forest Ghoul", "Cave Bat", "Stone Sentinel", "Dark Sorcerer",
-  "Frost Giant", "Minotaur", "Fire Drake", "Shadow Self", "The Tyrant",
 ];
 
 export default function StageSelect() {
@@ -111,7 +107,7 @@ export default function StageSelect() {
 
                 {/* Enemy name */}
                 <div className={`text-xs font-bold text-center leading-tight ${isUnlocked ? colors.text : "text-gray-600"}`}>
-                  {isUnlocked ? STAGE_ENEMIES[idx] : "???"}
+                  {isUnlocked ? STORY_ENEMIES[idx].name : "???"}
                 </div>
 
                 {/* Difficulty indicator */}

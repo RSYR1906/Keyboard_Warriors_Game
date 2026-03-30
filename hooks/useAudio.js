@@ -59,36 +59,20 @@ export function useAudio() {
     ensureInit();
   }, [ensureInit]);
 
-  // ── Play helpers ─────────────────────────────────────────
-  const playTyping = useCallback(() => {
-    ensureReady();
-    const ctx = getAudioContext();
-    playBuffer(ctx, buffers.current.typing, 0.25);
-  }, [ensureReady]);
+  // ── Play helper factory ──────────────────────────────────
+  const playSFX = useCallback(
+    (key, volume) => {
+      ensureReady();
+      playBuffer(getAudioContext(), buffers.current[key], volume);
+    },
+    [ensureReady],
+  );
 
-  const playClick = useCallback(() => {
-    ensureReady();
-    const ctx = getAudioContext();
-    playBuffer(ctx, buffers.current.click, 0.4);
-  }, [ensureReady]);
-
-  const playModeSelect = useCallback(() => {
-    ensureReady();
-    const ctx = getAudioContext();
-    playBuffer(ctx, buffers.current.modeSelect, 0.5);
-  }, [ensureReady]);
-
-  const playAttack = useCallback(() => {
-    ensureReady();
-    const ctx = getAudioContext();
-    playBuffer(ctx, buffers.current.attack, 0.5);
-  }, [ensureReady]);
-
-  const playHit = useCallback(() => {
-    ensureReady();
-    const ctx = getAudioContext();
-    playBuffer(ctx, buffers.current.hit, 0.5);
-  }, [ensureReady]);
+  const playTyping    = useCallback(() => playSFX("typing", 0.25),     [playSFX]);
+  const playClick     = useCallback(() => playSFX("click", 0.4),       [playSFX]);
+  const playModeSelect = useCallback(() => playSFX("modeSelect", 0.5), [playSFX]);
+  const playAttack    = useCallback(() => playSFX("attack", 0.5),      [playSFX]);
+  const playHit       = useCallback(() => playSFX("hit", 0.5),         [playSFX]);
 
   const playBGM = useCallback(() => {
     ensureReady();

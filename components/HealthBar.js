@@ -1,11 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { memo } from "react";
 
 /**
  * HealthBar — displays an animated HP bar for player or CPU.
  */
-export default function HealthBar({
+export default memo(function HealthBar({
   label,
   hp,
   maxHp,
@@ -63,4 +64,4 @@ export default function HealthBar({
       </div>
     </motion.div>
   );
-}
+});

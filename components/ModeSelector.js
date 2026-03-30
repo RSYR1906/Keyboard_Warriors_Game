@@ -2,32 +2,32 @@
 
 import { motion } from "framer-motion";
 
+const COLOR_MAP = {
+  cyan: {
+    border: "border-cyan-500/30 hover:border-cyan-400/60",
+    bg: "hover:bg-cyan-500/10",
+    title: "text-cyan-400",
+    icon: "text-cyan-400",
+  },
+  purple: {
+    border: "border-purple-500/30 hover:border-purple-400/60",
+    bg: "hover:bg-purple-500/10",
+    title: "text-purple-400",
+    icon: "text-purple-400",
+  },
+  amber: {
+    border: "border-amber-500/30 hover:border-amber-400/60",
+    bg: "hover:bg-amber-500/10",
+    title: "text-amber-400",
+    icon: "text-amber-400",
+  },
+};
+
 /**
  * ModeSelector — a large card button used on the main menu.
  */
 export default function ModeSelector({ title, description, icon, onClick, color = "cyan" }) {
-  const colorMap = {
-    cyan: {
-      border: "border-cyan-500/30 hover:border-cyan-400/60",
-      bg: "hover:bg-cyan-500/10",
-      title: "text-cyan-400",
-      icon: "text-cyan-400",
-    },
-    purple: {
-      border: "border-purple-500/30 hover:border-purple-400/60",
-      bg: "hover:bg-purple-500/10",
-      title: "text-purple-400",
-      icon: "text-purple-400",
-    },
-    amber: {
-      border: "border-amber-500/30 hover:border-amber-400/60",
-      bg: "hover:bg-amber-500/10",
-      title: "text-amber-400",
-      icon: "text-amber-400",
-    },
-  };
-
-  const c = colorMap[color] || colorMap.cyan;
+  const c = COLOR_MAP[color] || COLOR_MAP.cyan;
 
   return (
     <motion.button
