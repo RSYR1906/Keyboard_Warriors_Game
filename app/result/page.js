@@ -6,10 +6,10 @@ import { MAX_HP } from "@/lib/cpuDifficulty";
 import { calculateStars, saveStageStars, unlockNextStage } from "@/lib/stageProgress";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { memo, Suspense, useEffect, useMemo, useState } from "react";
 
 // ── Star Rating Display ─────────────────────────────────────
-function StarRating({ stars, delay = 0.5 }) {
+const StarRating = memo(function StarRating({ stars, delay = 0.5 }) {
   return (
     <div className="flex gap-1">
       {[1, 2, 3].map((i) => (
@@ -25,15 +25,15 @@ function StarRating({ stars, delay = 0.5 }) {
       ))}
     </div>
   );
-}
+});
 
 // ── Animated Stat Card ──────────────────────────────────────
-function StatCard({ label, value, unit = "", icon, color, delay }) {
+const StatCard = memo(function StatCard({ label, value, unit = "", icon, color, delay }) {
   const [displayed, setDisplayed] = useState(0);
 
   useEffect(() => {
     const target = typeof value === "number" ? value : 0;
-    if (target === 0) { setDisplayed(0); return; }
+    if (target === 0) { queueMicrotask(() => setDisplayed(0)); return; }
     const duration = 800;
     const start = Date.now();
     let rafId;
@@ -62,7 +62,7 @@ function StatCard({ label, value, unit = "", icon, color, delay }) {
       <span className="text-xs text-gray-400 font-mono uppercase tracking-wider">{label}</span>
     </motion.div>
   );
-}
+});
 
 function ResultContent() {
   const router = useRouter();
@@ -81,8 +81,11 @@ function ResultContent() {
   const totalTaken = parseInt(searchParams.get("taken") || "0", 10);
   const bestCombo = parseInt(searchParams.get("combo") || "0", 10);
   const roundsPlayed = parseInt(searchParams.get("rounds") || "0", 10);
-  const hasStats = roundsPlayed > 0;
+  const endlessScore = parseInt(searchParams.get("score") || "0", 10);
+  const timeSurvived = parseInt(searchParams.get("survived") || "0", 10);
+  const hasStats = roundsPlayed > 0 || endlessScore > 0;
 
+  const isEndless = mode === "endless";
   const isWin = result === "win";
   const isStoryVictory = mode === "story" && stage === 10 && isWin;
   const isStoryWin = mode === "story" && isWin && !isStoryVictory;
@@ -253,7 +256,7 @@ function ResultContent() {
           transition={{ type: "spring", duration: 0.6, bounce: 0.5 }}
           className="text-7xl mb-4"
         >
-          {isWin ? "🎉" : "💀"}
+          {isEndless ? "⏰" : isWin ? "🎉" : "💀"}
         </motion.div>
 
         {/* Result text */}
@@ -262,10 +265,10 @@ function ResultContent() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className={`text-4xl md:text-5xl font-bold mb-2 ${
-            isWin ? "text-emerald-400" : "text-red-400"
+            isEndless ? "text-rose-400" : isWin ? "text-emerald-400" : "text-red-400"
           }`}
         >
-          {isWin ? "You Win!" : "You Lose"}
+          {isEndless ? "Time's Up!" : isWin ? "You Win!" : "You Lose"}
         </motion.h1>
 
         {/* Mode context */}
@@ -278,6 +281,7 @@ function ResultContent() {
           {mode === "story" && `Story Mode — Stage ${stage}`}
           {mode === "sentence" && `Sentence Mode — ${difficulty}`}
           {mode === "word" && `Word Mode — ${difficulty}`}
+          {mode === "endless" && `Endless Battle — ${difficulty}`}
         </motion.p>
 
         {/* Star rating */}
@@ -295,16 +299,22 @@ function ResultContent() {
             transition={{ delay: 0.8 }}
             className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6 max-w-md w-full"
           >
-            <StatCard label="WPM" value={avgWpm} icon="⚡" color="text-cyan-400" delay={0.9} />
-            <StatCard label="Accuracy" value={avgAcc} unit="%" icon="🎯" color="text-emerald-400" delay={1.0} />
-            <StatCard label="Best Combo" value={bestCombo} icon="🔥" color="text-orange-400" delay={1.1} />
-            {mode !== "sentence" && (
+            {isEndless && (
+              <>
+                <StatCard label="Score" value={endlessScore} icon="🏆" color="text-yellow-400" delay={0.9} />
+                <StatCard label="Survived" value={timeSurvived} unit="s" icon="⏱️" color="text-rose-400" delay={1.0} />
+              </>
+            )}
+            <StatCard label="WPM" value={avgWpm} icon="⚡" color="text-cyan-400" delay={isEndless ? 1.1 : 0.9} />
+            <StatCard label="Accuracy" value={avgAcc} unit="%" icon="🎯" color="text-emerald-400" delay={isEndless ? 1.2 : 1.0} />
+            <StatCard label="Best Combo" value={bestCombo} icon="🔥" color="text-orange-400" delay={isEndless ? 1.3 : 1.1} />
+            {!isEndless && mode !== "sentence" && (
               <>
                 <StatCard label="Dmg Dealt" value={totalDealt} icon="⚔️" color="text-yellow-400" delay={1.2} />
                 <StatCard label="Dmg Taken" value={totalTaken} icon="🛡️" color="text-red-400" delay={1.3} />
               </>
             )}
-            <StatCard label="Rounds" value={roundsPlayed} icon="🔄" color="text-purple-400" delay={1.4} />
+            {!isEndless && <StatCard label="Rounds" value={roundsPlayed} icon="🔄" color="text-purple-400" delay={1.4} />}
           </motion.div>
         )}
 
@@ -322,7 +332,7 @@ function ResultContent() {
             onClick={handleRetry}
             className="px-6 py-3 rounded-xl border-2 border-cyan-500/50 hover:border-cyan-400 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-bold transition-colors cursor-pointer"
           >
-            {mode === "story" ? "Retry Stage" : "Retry"}
+            {mode === "story" ? "Retry Stage" : mode === "endless" ? "Play Again" : "Retry"}
           </motion.button>
 
           {/* Next Stage button (story mode win only, stages 1–9) */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { memo } from "react";
 
 // ── Story mode enemy configs with body types ─────────────────
 export const STORY_ENEMIES = [
@@ -19,6 +20,9 @@ export const STORY_ENEMIES = [
 export function getEnemyConfig(mode, stage) {
   if (mode === "story") {
     return STORY_ENEMIES[Math.min((stage || 1) - 1, STORY_ENEMIES.length - 1)];
+  }
+  if (mode === "endless") {
+    return { name: "Training Dummy", color: "#78716C", accent: "#A8A29E", body: "dummy", weapon: "none" };
   }
   return { name: "CPU Bot", color: "#991B1B", accent: "#F87171", body: "knight", weapon: "sword" };
 }
@@ -512,6 +516,43 @@ function KnightBody({ isAttacking, isHit, color, accent }) {
   );
 }
 
+// ── Dummy (training target for endless mode) ────────────────
+function DummyBody({ isAttacking, isHit, color, accent }) {
+  return (
+    <svg viewBox="0 0 120 160" width="120" height="160" className="drop-shadow-2xl">
+      {/* Wooden post */}
+      <rect x="50" y="90" width="20" height="70" rx="3" fill="#78553A" />
+      {/* Cross-beam */}
+      <rect x="20" y="60" width="80" height="12" rx="4" fill="#8B6F47" />
+      {/* Head (straw-stuffed sack) */}
+      <motion.circle cx="60" cy="40" r="22" fill={color} stroke={accent} strokeWidth="2"
+        animate={isHit ? { x: [0, 8, -8, 5, -3, 0], rotate: [0, 10, -10, 5, 0] } : {}}
+        transition={{ duration: 0.4 }} />
+      {/* X eyes */}
+      <motion.g animate={isHit ? { fill: "#EF4444" } : { fill: accent }} transition={{ duration: 0.2 }}>
+        <text x="50" y="44" fontSize="12" fontWeight="bold" fill={accent}>✕</text>
+        <text x="62" y="44" fontSize="12" fontWeight="bold" fill={accent}>✕</text>
+      </motion.g>
+      {/* Stitched mouth */}
+      <path d="M52 50 L56 48 L60 50 L64 48 L68 50" stroke={accent} strokeWidth="1.5" fill="none" />
+      {/* Target circles on body */}
+      <circle cx="60" cy="80" r="15" fill="none" stroke="#EF4444" strokeWidth="2" opacity="0.5" />
+      <circle cx="60" cy="80" r="8" fill="none" stroke="#EF4444" strokeWidth="1.5" opacity="0.7" />
+      <circle cx="60" cy="80" r="3" fill="#EF4444" opacity="0.8" />
+      {/* Arm nubs on cross-beam */}
+      <circle cx="22" cy="66" r="6" fill={color} stroke={accent} strokeWidth="1" />
+      <circle cx="98" cy="66" r="6" fill={color} stroke={accent} strokeWidth="1" />
+      {/* Straw wisps */}
+      <motion.g animate={isHit ? { y: [0, -3, 0] } : {}} transition={{ duration: 0.3 }}>
+        <line x1="45" y1="25" x2="40" y2="18" stroke="#D4A574" strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="75" y1="25" x2="80" y2="18" stroke="#D4A574" strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="55" y1="22" x2="52" y2="14" stroke="#D4A574" strokeWidth="1.5" strokeLinecap="round" />
+      </motion.g>
+      <HitFlash x={38} y={18} width={44} height={44} rx={22} isHit={isHit} />
+    </svg>
+  );
+}
+
 // ── Body-type dispatch map ───────────────────────────────────
 const BODY_COMPONENTS = {
   beast: BeastBody,
@@ -524,6 +565,7 @@ const BODY_COMPONENTS = {
   dragon: DragonBody,
   mirror: MirrorBody,
   king: KingBody,
+  dummy: DummyBody,
 };
 
 /**
@@ -531,8 +573,8 @@ const BODY_COMPONENTS = {
  *
  * @param {{ isAttacking: boolean, isHit: boolean, config: Object }} props
  */
-export default function EnemyCharacter({ isAttacking, isHit, config }) {
+export default memo(function EnemyCharacter({ isAttacking, isHit, config }) {
   const { color, accent, body } = config;
   const BodyComponent = BODY_COMPONENTS[body] || KnightBody;
   return <BodyComponent isAttacking={isAttacking} isHit={isHit} color={color} accent={accent} />;
-}
+});

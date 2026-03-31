@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * useBattleAnimations — manages all attack / hit / round-message
@@ -78,6 +78,14 @@ export function useBattleAnimations({ playHit }) {
     },
     [playHit],
   );
+
+  // Clear pending timers on unmount to prevent setState after unmount
+  useEffect(() => {
+    return () => {
+      if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+      if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
+    };
+  }, []);
 
   return {
     ...animState,

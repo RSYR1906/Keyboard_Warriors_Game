@@ -21,6 +21,12 @@ const COLOR_MAP = {
     title: "text-amber-400",
     icon: "text-amber-400",
   },
+  rose: {
+    border: "border-rose-500/30 hover:border-rose-400/60",
+    bg: "hover:bg-rose-500/10",
+    title: "text-rose-400",
+    icon: "text-rose-400",
+  },
 };
 
 /**

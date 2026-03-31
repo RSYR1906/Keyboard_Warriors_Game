@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 
 import EnemyCharacter, { getEnemyConfig } from "./characters/EnemyCharacter";
 import PlayerCharacter from "./characters/PlayerCharacter";
@@ -105,7 +105,7 @@ function ArenaBackground() {
 }
 
 // ── Main Arena Component ──────────────────────────────────────
-export default function BattleArena({
+export default memo(function BattleArena({
   mode = "word",
   stage = 1,
   playerAttacking = false,
@@ -115,7 +115,7 @@ export default function BattleArena({
   roundMessage = "",
   playerName = "You",
 }) {
-  const enemyConfig = getEnemyConfig(mode, stage);
+  const enemyConfig = useMemo(() => getEnemyConfig(mode, stage), [mode, stage]);
   const [showClash, setShowClash] = useState(false);
 
   useEffect(() => {
@@ -189,4 +189,4 @@ export default function BattleArena({
       </div>
     </div>
   );
-}
+});

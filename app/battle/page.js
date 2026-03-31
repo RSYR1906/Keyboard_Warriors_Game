@@ -6,19 +6,25 @@ import GameLayout from "@/components/GameLayout";
 import HealthBar from "@/components/HealthBar";
 import StageSplash from "@/components/StageSplash";
 import TypingBox from "@/components/TypingBox";
-import { ComboIndicator, DamageFloat } from "@/components/effects/BattleEffects";
+import { ComboIndicator, DamageFloat, FinishingBlowEffect } from "@/components/effects/BattleEffects";
 import { useGameState } from "@/context/GameContext";
 import { useAudio } from "@/hooks/useAudio";
 import { useBattleAnimations } from "@/hooks/useBattleAnimations";
 import { useTyping } from "@/hooks/useTyping";
 import { resolveBattleRound } from "@/lib/battleResolver";
-import { PLAYER_NAME_KEY } from "@/lib/constants";
+import {
+    ENDLESS_ACCURACY_THRESHOLD,
+    ENDLESS_CORRECT_BONUS_S,
+    ENDLESS_START_TIME_S,
+    ENDLESS_WRONG_PENALTY_S,
+    PLAYER_NAME_KEY,
+} from "@/lib/constants";
 import { getCpuConfig, MAX_HP } from "@/lib/cpuDifficulty";
 import { simulateCPU } from "@/lib/cpuEngine";
 import { getPromptText, getStageInfo } from "@/lib/gameEngine";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { memo, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // ── Constants ────────────────────────────────────────────────
 const CPU_PROGRESS_INTERVAL = 50;
@@ -57,6 +63,15 @@ function BattleContent() {
   const [playerName, setPlayerName] = useState("You");
   const [shakeActive, setShakeActive] = useState(false);
   const [damageFloats, setDamageFloats] = useState([]);
+  const [showFinishingBlow, setShowFinishingBlow] = useState(false);
+  const pendingNavigateRef = useRef(null);
+
+  // ── Endless mode state ─────────────────────────────────
+  const [endlessTime, setEndlessTime] = useState(ENDLESS_START_TIME_S);
+  const [endlessScore, setEndlessScore] = useState(0);
+  const [endlessActive, setEndlessActive] = useState(false);
+  const endlessStartRef = useRef(null);
+  const isEndless = urlMode === "endless";
 
   // ── Refs for round lifecycle ───────────────────────────
   const cpuTimerRef = useRef(null);
@@ -101,6 +116,37 @@ function BattleContent() {
     };
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Endless timer countdown ────────────────────────────
+  useEffect(() => {
+    if (!isEndless || !endlessActive) return;
+    const tick = setInterval(() => {
+      setEndlessTime((prev) => {
+        if (prev <= 1) {
+          clearInterval(tick);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [isEndless, endlessActive]);
+
+  // ── Endless: navigate when time runs out ───────────────
+  useEffect(() => {
+    if (!isEndless || !endlessActive || endlessTime > 0) return;
+    setEndlessActive(false);
+    stopBGM();
+    // Compute stats
+    const s = battleStatsRef.current;
+    const avgWpm = s.roundsPlayed > 0 ? Math.round(s.totalWpm / s.roundsPlayed) : 0;
+    const avgAcc = s.roundsPlayed > 0 ? Math.round(s.totalAccuracy / s.roundsPlayed) : 0;
+    const survived = endlessStartRef.current ? Math.round((Date.now() - endlessStartRef.current) / 1000) : 0;
+    const url = `/result?mode=endless&difficulty=${urlDifficulty}&result=done&score=${endlessScore}&survived=${survived}&wpm=${avgWpm}&acc=${avgAcc}&combo=${s.bestMaxCombo}&rounds=${s.roundsPlayed}`;
+    // Show finishing blow then navigate
+    pendingNavigateRef.current = url;
+    setShowFinishingBlow(true);
+  }, [isEndless, endlessActive, endlessTime, endlessScore, urlDifficulty, stopBGM]);
+
   // ── Set current text & reset round state ───────────────
   useEffect(() => {
     if (phase !== "active") return;
@@ -120,9 +166,9 @@ function BattleContent() {
     setCpuProgress(0);
   }, [phase, sentenceIdx, urlMode, urlDifficulty, urlStage]);
 
-  // ── CPU simulation ─────────────────────────────────────
+  // ── CPU simulation (skip for endless mode) ──────────────
   useEffect(() => {
-    if (phase !== "active" || !currentText) return;
+    if (phase !== "active" || !currentText || isEndless) return;
 
     const cpuConfig = getCpuConfig(urlMode, {
       stage: urlStage,
@@ -173,6 +219,36 @@ function BattleContent() {
   // ── Player typing completion ───────────────────────────
   const handlePlayerComplete = useCallback(
     (stats) => {
+      // ── Endless mode: solo completion flow ─────────────
+      if (isEndless) {
+        const isCorrect = stats.accuracy >= ENDLESS_ACCURACY_THRESHOLD;
+
+        // Accumulate stats
+        const s = battleStatsRef.current;
+        s.totalWpm += stats.wpm;
+        s.totalAccuracy += stats.accuracy;
+        s.roundsPlayed += 1;
+        if ((stats.maxCombo || 0) > s.bestMaxCombo) s.bestMaxCombo = stats.maxCombo || 0;
+
+        if (isCorrect) {
+          setEndlessScore((prev) => prev + 1);
+          setEndlessTime((prev) => prev + ENDLESS_CORRECT_BONUS_S);
+          playAttack();
+          // Animate hit on dummy
+          playAttackSequence("player", `+${ENDLESS_CORRECT_BONUS_S}s ✓`, () => {
+            setSentenceIdx((prev) => prev + 1);
+          });
+        } else {
+          setEndlessTime((prev) => Math.max(0, prev - ENDLESS_WRONG_PENALTY_S));
+          playAttackSequence("cpu", `-${ENDLESS_WRONG_PENALTY_S}s ✗`, () => {
+            setSentenceIdx((prev) => prev + 1);
+          });
+          triggerShake();
+        }
+        return;
+      }
+
+      // ── Standard modes ─────────────────────────────────
       if (roundResolvedRef.current || playerFinishedRef.current) return;
       playerFinishedRef.current = true;
       playAttack();
@@ -185,7 +261,7 @@ function BattleContent() {
         setCpuResult({ completionTime: Infinity, wpm: 0, accuracy: 0, maxCombo: 0, success: false });
       }
     },
-    [playAttack],
+    [playAttack, isEndless, playAttackSequence, triggerShake],
   );
 
   // ── Combo milestone callback ───────────────────────────
@@ -280,14 +356,16 @@ function BattleContent() {
 
     // Play the attack animation, then handle navigation or next round
     playAttackSequence(resolution.winner, resolution.message, () => {
-      if (resolution.shouldStopBGM) stopBGM();
       if (resolution.navigateTo) {
         // Append battle stats to result URL
         const s = battleStatsRef.current;
         const avgWpm = s.roundsPlayed > 0 ? Math.round(s.totalWpm / s.roundsPlayed) : 0;
         const avgAcc = s.roundsPlayed > 0 ? Math.round(s.totalAccuracy / s.roundsPlayed) : 0;
         const statsQuery = `&wpm=${avgWpm}&acc=${avgAcc}&dealt=${s.totalDamageDealt}&taken=${s.totalDamageTaken}&combo=${s.bestMaxCombo}&rounds=${s.roundsPlayed}`;
-        router.push(resolution.navigateTo + statsQuery);
+        // Show finishing blow effect before navigating
+        pendingNavigateRef.current = resolution.navigateTo + statsQuery;
+        if (resolution.shouldStopBGM) stopBGM();
+        setShowFinishingBlow(true);
       } else {
         advanceToNextRound(resolution);
       }
@@ -325,7 +403,20 @@ function BattleContent() {
   // ── Countdown completion ───────────────────────────────
   const handleCountdownComplete = useCallback(() => {
     setPhase("active");
-  }, []);
+    if (isEndless) {
+      setEndlessActive(true);
+      endlessStartRef.current = Date.now();
+    }
+  }, [isEndless]);
+
+  // ── Finishing blow completion ───────────────────────────
+  const handleFinishingBlowComplete = useCallback(() => {
+    setShowFinishingBlow(false);
+    if (pendingNavigateRef.current) {
+      router.push(pendingNavigateRef.current);
+      pendingNavigateRef.current = null;
+    }
+  }, [router]);
 
   // ── Story splash timer ─────────────────────────────────
   useEffect(() => {
@@ -334,7 +425,10 @@ function BattleContent() {
     return () => clearTimeout(timer);
   }, [phase]);
 
-  const stageInfo = urlMode === "story" ? getStageInfo(urlStage) : null;
+  const stageInfo = useMemo(
+    () => (urlMode === "story" ? getStageInfo(urlStage) : null),
+    [urlMode, urlStage],
+  );
 
   // ── Render ─────────────────────────────────────────────
   return (
@@ -366,6 +460,13 @@ function BattleContent() {
         ))}
       </AnimatePresence>
 
+      {/* Finishing blow overlay */}
+      <AnimatePresence>
+        {showFinishingBlow && (
+          <FinishingBlowEffect onComplete={handleFinishingBlowComplete} />
+        )}
+      </AnimatePresence>
+
       {/* Stage Splash for Story Mode */}
       {urlMode === "story" && (
         <StageSplash
@@ -395,12 +496,17 @@ function BattleContent() {
             round={game.round}
             playerWins={game.playerWins}
             cpuWins={game.cpuWins}
+            endlessScore={endlessScore}
+            endlessTime={endlessTime}
           />
-          {urlMode !== "sentence" && (
+          {!isEndless && urlMode !== "sentence" && (
             <div className="w-full max-w-3xl mx-auto flex justify-between gap-8">
               <HealthBar label={playerName} hp={game.playerHP} maxHp={MAX_HP} isPlayer isHit={playerHit} />
               <HealthBar label="CPU" hp={game.cpuHP} maxHp={MAX_HP} isPlayer={false} isHit={cpuHit} />
             </div>
+          )}
+          {isEndless && phase === "active" && (
+            <EndlessHUD time={endlessTime} score={endlessScore} />
           )}
         </div>
 
@@ -430,10 +536,10 @@ function BattleContent() {
                 inputRef={inputRef}
                 isComplete={isComplete}
                 isReady={isReady}
-                active={phase === "active"}
+                active={phase === "active" && (!isEndless || endlessActive)}
               />
-              <CpuProgressBar progress={cpuProgress} />
-              {playerResult && <PlayerStats result={playerResult} />}
+              {!isEndless && <CpuProgressBar progress={cpuProgress} />}
+              {!isEndless && playerResult && <PlayerStats result={playerResult} />}
             </motion.div>
           )}
 
@@ -450,13 +556,14 @@ function BattleContent() {
 
 // ── Small presentational sub-components ──────────────────────
 
-const ModeInfoBar = memo(function ModeInfoBar({ urlMode, urlStage, urlDifficulty, round, playerWins, cpuWins }) {
+const ModeInfoBar = memo(function ModeInfoBar({ urlMode, urlStage, urlDifficulty, round, playerWins, cpuWins, endlessScore, endlessTime }) {
   return (
     <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-3">
       <div className="text-sm font-mono text-gray-300/80 uppercase tracking-wider mb-1 drop-shadow-md">
         {urlMode === "story" && `Story Mode — Stage ${urlStage}`}
         {urlMode === "sentence" && `Sentence Mode — Round ${round}/3`}
         {urlMode === "word" && `Word Mode — ${urlDifficulty}`}
+        {urlMode === "endless" && `Endless Battle — ${urlDifficulty}`}
       </div>
       {urlMode === "sentence" && (
         <div className="text-xs font-mono text-gray-400/80 drop-shadow-md">
@@ -464,6 +571,46 @@ const ModeInfoBar = memo(function ModeInfoBar({ urlMode, urlStage, urlDifficulty
         </div>
       )}
     </motion.div>
+  );
+});
+
+// ── Endless Mode Timer + Score HUD ───────────────────────────
+const EndlessHUD = memo(function EndlessHUD({ time, score }) {
+  const isLow = time <= 10;
+  const minutes = Math.floor(time / 60);
+  const seconds = time % 60;
+  const timeStr = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+
+  return (
+    <div className="w-full max-w-3xl mx-auto flex justify-between items-center gap-4 mt-2">
+      {/* Score */}
+      <motion.div
+        key={score}
+        initial={score > 0 ? { scale: 1.2 } : false}
+        animate={{ scale: 1 }}
+        className="flex items-center gap-2 bg-gray-800/60 border border-gray-700/50 rounded-xl px-4 py-2 backdrop-blur-sm"
+      >
+        <span className="text-lg">🏆</span>
+        <span className="text-2xl font-black text-yellow-400 font-mono">{score}</span>
+        <span className="text-xs text-gray-400 uppercase tracking-wider">words</span>
+      </motion.div>
+
+      {/* Timer */}
+      <motion.div
+        animate={isLow ? { scale: [1, 1.05, 1], borderColor: ["rgba(244,63,94,0.5)", "rgba(244,63,94,0.9)", "rgba(244,63,94,0.5)"] } : {}}
+        transition={isLow ? { duration: 1, repeat: Infinity } : {}}
+        className={`flex items-center gap-2 border rounded-xl px-5 py-2 backdrop-blur-sm ${
+          isLow
+            ? "bg-red-900/40 border-rose-500/50"
+            : "bg-gray-800/60 border-gray-700/50"
+        }`}
+      >
+        <span className="text-lg">{isLow ? "🔥" : "⏱️"}</span>
+        <span className={`text-2xl font-black font-mono ${isLow ? "text-rose-400" : "text-white"}`}>
+          {timeStr}
+        </span>
+      </motion.div>
+    </div>
   );
 });
 

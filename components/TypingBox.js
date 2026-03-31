@@ -2,12 +2,13 @@
 
 import { getCharStates } from "@/lib/typingEngine";
 import { motion } from "framer-motion";
+import { memo } from "react";
 
 /**
  * TypingBox — renders the target text with per-character highlighting
  * and a hidden input for capturing keystrokes.
  */
-export default function TypingBox({
+export default memo(function TypingBox({
   target,
   input,
   onChangeHandler,
@@ -113,4 +114,4 @@ export default function TypingBox({
       </div>
     </div>
   );
-}
+});

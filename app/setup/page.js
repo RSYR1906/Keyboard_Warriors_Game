@@ -14,6 +14,7 @@ const difficulties = [
     icon: "🌱",
     wordDesc: "Short, common words (3–5 letters)",
     sentenceDesc: "Short, simple sentences (30–50 characters)",
+    endlessDesc: "Short words — more forgiving, +5s per word",
   },
   {
     key: "medium",
@@ -22,6 +23,7 @@ const difficulties = [
     icon: "⚡",
     wordDesc: "Mixed-length words (5–7 letters)",
     sentenceDesc: "Moderate sentences with punctuation (50–80 characters)",
+    endlessDesc: "Medium words — balanced challenge, +5s per word",
   },
   {
     key: "hard",
@@ -30,6 +32,7 @@ const difficulties = [
     icon: "🔥",
     wordDesc: "Long, technical words (8+ letters)",
     sentenceDesc: "Long, complex sentences with mixed punctuation (80–120 characters)",
+    endlessDesc: "Long, tricky words — every second counts!",
   },
 ];
 
@@ -60,8 +63,8 @@ function SetupContent() {
   const mode = searchParams.get("mode") || "word";
   const { playClick, playModeSelect } = useAudio();
 
-  const modeLabel = mode === "sentence" ? "Sentence Battle" : "Word Battle";
-  const modeIcon = mode === "sentence" ? "📝" : "⚡";
+  const modeLabel = mode === "sentence" ? "Sentence Battle" : mode === "endless" ? "Endless Battle" : "Word Battle";
+  const modeIcon = mode === "sentence" ? "📝" : mode === "endless" ? "⏱️" : "⚡";
 
   const handleSelect = (difficulty) => {
     playModeSelect();
@@ -101,7 +104,7 @@ function SetupContent() {
         >
           {difficulties.map((d, i) => {
             const c = colorClasses[d.color];
-            const desc = mode === "sentence" ? d.sentenceDesc : d.wordDesc;
+            const desc = mode === "sentence" ? d.sentenceDesc : mode === "endless" ? d.endlessDesc : d.wordDesc;
 
             return (
               <motion.button

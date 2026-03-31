@@ -199,3 +199,160 @@ export function AmbientParticles() {
     </div>
   );
 }
+
+// ── Finishing Blow Effect ──────────────────────────────────────
+// Dramatic full-screen overlay for the final killing blow in all modes.
+
+const FB_PARTICLES = Array.from({ length: 24 }, (_, i) => ({
+  id: i,
+  angle: (i / 24) * 360,
+  dist: 80 + ((i * 17 + 5) % 120),
+  size: 4 + (i % 5) * 2,
+  color: i % 3 === 0 ? "#FACC15" : i % 3 === 1 ? "#F87171" : "#FB923C",
+  delay: i * 0.015,
+}));
+
+const FB_RAYS = Array.from({ length: 16 }, (_, i) => ({
+  id: i,
+  angle: (i / 16) * 360,
+  length: 200 + ((i * 31) % 150),
+}));
+
+export function FinishingBlowEffect({ onComplete }) {
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onAnimationComplete={() => {
+        // Fire onComplete after full sequence
+        setTimeout(() => onComplete?.(), 200);
+      }}
+    >
+      {/* Screen flash */}
+      <motion.div
+        className="absolute inset-0 bg-white"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 0.9, 0.6, 0] }}
+        transition={{ duration: 0.6, times: [0, 0.1, 0.3, 1] }}
+      />
+
+      {/* Dark vignette after flash */}
+      <motion.div
+        className="absolute inset-0 bg-black"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 0, 0.4, 0.3, 0] }}
+        transition={{ duration: 1.4, times: [0, 0.3, 0.5, 0.8, 1] }}
+      />
+
+      {/* Radial shockwave ring */}
+      <motion.div
+        className="absolute rounded-full border-4 border-yellow-400"
+        initial={{ width: 0, height: 0, opacity: 1 }}
+        animate={{ width: 800, height: 800, opacity: [1, 0.8, 0] }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        style={{ filter: "blur(2px)" }}
+      />
+
+      {/* Second shockwave (delayed) */}
+      <motion.div
+        className="absolute rounded-full border-2 border-orange-400"
+        initial={{ width: 0, height: 0, opacity: 0.8 }}
+        animate={{ width: 600, height: 600, opacity: [0.8, 0.5, 0] }}
+        transition={{ duration: 0.7, delay: 0.15, ease: "easeOut" }}
+        style={{ filter: "blur(3px)" }}
+      />
+
+      {/* Radial rays */}
+      <svg className="absolute" width="800" height="800" viewBox="-400 -400 800 800" style={{ filter: "blur(1px)" }}>
+        {FB_RAYS.map((r) => {
+          const rad = (r.angle * Math.PI) / 180;
+          return (
+            <motion.line
+              key={r.id}
+              x1="0" y1="0"
+              x2={Math.cos(rad) * r.length}
+              y2={Math.sin(rad) * r.length}
+              stroke="#FACC15"
+              strokeWidth="3"
+              strokeLinecap="round"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: [0, 1, 0.5], opacity: [0, 0.9, 0] }}
+              transition={{ duration: 0.8, delay: 0.05 + r.id * 0.02, ease: "easeOut" }}
+            />
+          );
+        })}
+        {/* Central starburst */}
+        <motion.circle
+          cx="0" cy="0" r="20"
+          fill="white"
+          initial={{ r: 5, opacity: 1 }}
+          animate={{ r: [5, 40, 0], opacity: [1, 0.9, 0] }}
+          transition={{ duration: 0.6 }}
+        />
+      </svg>
+
+      {/* Flying particles */}
+      {FB_PARTICLES.map((p) => {
+        const rad = (p.angle * Math.PI) / 180;
+        return (
+          <motion.div
+            key={p.id}
+            className="absolute rounded-full"
+            style={{ width: p.size, height: p.size, background: p.color }}
+            initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+            animate={{
+              x: Math.cos(rad) * p.dist,
+              y: Math.sin(rad) * p.dist,
+              opacity: [1, 0.9, 0],
+              scale: [1, 1.5, 0.5],
+            }}
+            transition={{ duration: 0.7, delay: p.delay, ease: "easeOut" }}
+          />
+        );
+      })}
+
+      {/* FINISHING BLOW text */}
+      <motion.div
+        className="absolute flex flex-col items-center"
+        initial={{ scale: 0, opacity: 0, rotate: -5 }}
+        animate={{ scale: [0, 1.3, 1], opacity: [0, 1, 1, 0.9], rotate: [-5, 2, 0] }}
+        transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+      >
+        <span
+          className="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-linear-to-b from-yellow-300 via-orange-400 to-red-500 select-none tracking-wider"
+          style={{
+            filter: "drop-shadow(0 0 20px rgba(250,204,21,0.6)) drop-shadow(0 0 40px rgba(249,115,22,0.4))",
+            WebkitTextStroke: "1px rgba(250,204,21,0.3)",
+          }}
+        >
+          FINISHING BLOW
+        </span>
+        <motion.div
+          className="h-1 bg-linear-to-r from-transparent via-yellow-400 to-transparent mt-2"
+          initial={{ width: 0 }}
+          animate={{ width: [0, 300, 320] }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+        />
+      </motion.div>
+
+      {/* Screen-edge sparks */}
+      {[0, 1, 2, 3].map((i) => (
+        <motion.div
+          key={`spark-${i}`}
+          className="absolute w-1 h-8 bg-yellow-400 rounded-full"
+          style={{
+            left: i < 2 ? `${10 + i * 80}%` : "50%",
+            top: i < 2 ? "50%" : `${10 + (i - 2) * 80}%`,
+            rotate: i < 2 ? "0deg" : "90deg",
+            filter: "blur(1px)",
+          }}
+          initial={{ scaleY: 0, opacity: 0 }}
+          animate={{ scaleY: [0, 3, 0], opacity: [0, 1, 0] }}
+          transition={{ duration: 0.4, delay: 0.1 + i * 0.05 }}
+        />
+      ))}
+    </motion.div>
+  );
+}

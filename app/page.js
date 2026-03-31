@@ -181,7 +181,7 @@ function TypingDemo({ onFirstKeystroke }) {
 
   // Pick a random word + auto-focus on mount (client only)
   useEffect(() => {
-    setTarget(pickRandom());
+    queueMicrotask(() => setTarget(pickRandom()));
     inputRef.current?.focus();
   }, []);
 
@@ -349,7 +349,7 @@ export default function MainMenu() {
   // Load saved name on mount
   useEffect(() => {
     const saved = localStorage.getItem(PLAYER_NAME_KEY);
-    if (saved) setPlayerName(saved);
+    if (saved) queueMicrotask(() => setPlayerName(saved));
   }, []);
 
   // Stop menu music on unmount (navigation away)
@@ -384,7 +384,7 @@ export default function MainMenu() {
     if (mode === "story") {
       router.push("/stages");
     } else {
-      // Word and Sentence modes go to difficulty setup first
+      // Word, Sentence, and Endless modes go to difficulty setup first
       router.push(`/setup?mode=${mode}`);
     }
   };
@@ -444,7 +444,7 @@ export default function MainMenu() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.5 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl w-full"
+          className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full"
         >
           <ModeSelector
             title="Story Mode"
@@ -466,6 +466,13 @@ export default function MainMenu() {
             icon="⚡"
             color="amber"
             onClick={() => handleModeSelect("word")}
+          />
+          <ModeSelector
+            title="Endless Battle"
+            description="Race against the clock! Correct words add time, mistakes cost you. How long can you survive?"
+            icon="⏱️"
+            color="rose"
+            onClick={() => handleModeSelect("endless")}
           />
         </motion.div>
 
