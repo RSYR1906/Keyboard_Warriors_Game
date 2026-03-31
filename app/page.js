@@ -181,7 +181,7 @@ function TypingDemo({ onFirstKeystroke }) {
 
   // Pick a random word + auto-focus on mount (client only)
   useEffect(() => {
-    queueMicrotask(() => setTarget(pickRandom()));
+    setTarget(pickRandom());
     inputRef.current?.focus();
   }, []);
 
@@ -349,7 +349,7 @@ export default function MainMenu() {
   // Load saved name on mount
   useEffect(() => {
     const saved = localStorage.getItem(PLAYER_NAME_KEY);
-    if (saved) queueMicrotask(() => setPlayerName(saved));
+    if (saved) setPlayerName(saved);
   }, []);
 
   // Stop menu music on unmount (navigation away)

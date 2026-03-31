@@ -5,11 +5,16 @@ import {
     SpaceMenuBGM,
     generateAttack,
     generateClick,
+    generateComboMilestone,
+    generateCountdownGo,
+    generateCountdownTick,
     generateHit,
     generateModeSelect,
     generateTyping,
     getAudioContext,
     playBuffer,
+    playDefeatDirge,
+    playVictoryFanfare,
     resumeAudioContext,
 } from "@/lib/audioGenerator";
 import { useCallback, useEffect, useRef } from "react";
@@ -37,6 +42,9 @@ export function useAudio() {
       typing: generateTyping(ctx),
       attack: generateAttack(ctx),
       hit: generateHit(ctx),
+      countdownTick: generateCountdownTick(ctx),
+      countdownGo: generateCountdownGo(ctx),
+      comboMilestone: generateComboMilestone(ctx),
     };
 
     bgmRef.current = new EpicBGM(ctx);
@@ -68,11 +76,14 @@ export function useAudio() {
     [ensureReady],
   );
 
-  const playTyping    = useCallback(() => playSFX("typing", 0.25),     [playSFX]);
-  const playClick     = useCallback(() => playSFX("click", 0.4),       [playSFX]);
-  const playModeSelect = useCallback(() => playSFX("modeSelect", 0.5), [playSFX]);
-  const playAttack    = useCallback(() => playSFX("attack", 0.5),      [playSFX]);
-  const playHit       = useCallback(() => playSFX("hit", 0.5),         [playSFX]);
+  const playTyping        = useCallback(() => playSFX("typing", 0.25),         [playSFX]);
+  const playClick         = useCallback(() => playSFX("click", 0.4),           [playSFX]);
+  const playModeSelect    = useCallback(() => playSFX("modeSelect", 0.5),      [playSFX]);
+  const playAttack        = useCallback(() => playSFX("attack", 0.5),          [playSFX]);
+  const playHit           = useCallback(() => playSFX("hit", 0.5),             [playSFX]);
+  const playCountdownTick = useCallback(() => playSFX("countdownTick", 0.5),   [playSFX]);
+  const playCountdownGo   = useCallback(() => playSFX("countdownGo", 0.6),     [playSFX]);
+  const playComboMilestone = useCallback(() => playSFX("comboMilestone", 0.4), [playSFX]);
 
   const playBGM = useCallback(() => {
     ensureReady();
@@ -92,5 +103,20 @@ export function useAudio() {
     if (menuBgmRef.current) menuBgmRef.current.stop();
   }, []);
 
-  return { playTyping, playClick, playModeSelect, playAttack, playHit, playBGM, stopBGM, playMenuBGM, stopMenuBGM };
+  const triggerVictoryFanfare = useCallback(() => {
+    ensureReady();
+    playVictoryFanfare(getAudioContext());
+  }, [ensureReady]);
+
+  const triggerDefeatDirge = useCallback(() => {
+    ensureReady();
+    playDefeatDirge(getAudioContext());
+  }, [ensureReady]);
+
+  return {
+    playTyping, playClick, playModeSelect, playAttack, playHit,
+    playCountdownTick, playCountdownGo, playComboMilestone,
+    playBGM, stopBGM, playMenuBGM, stopMenuBGM,
+    triggerVictoryFanfare, triggerDefeatDirge,
+  };
 }

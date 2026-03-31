@@ -2,31 +2,122 @@
 
 import GameLayout from "@/components/GameLayout";
 import { useAudio } from "@/hooks/useAudio";
-import { unlockNextStage } from "@/lib/stageProgress";
+import { MAX_HP } from "@/lib/cpuDifficulty";
+import { calculateStars, saveStageStars, unlockNextStage } from "@/lib/stageProgress";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+
+// ── Star Rating Display ─────────────────────────────────────
+function StarRating({ stars, delay = 0.5 }) {
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3].map((i) => (
+        <motion.span
+          key={i}
+          initial={{ scale: 0, rotate: -180 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ delay: delay + i * 0.15, type: "spring", bounce: 0.5 }}
+          className={`text-3xl ${i <= stars ? "drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]" : "opacity-30"}`}
+        >
+          {i <= stars ? "⭐" : "☆"}
+        </motion.span>
+      ))}
+    </div>
+  );
+}
+
+// ── Animated Stat Card ──────────────────────────────────────
+function StatCard({ label, value, unit = "", icon, color, delay }) {
+  const [displayed, setDisplayed] = useState(0);
+
+  useEffect(() => {
+    const target = typeof value === "number" ? value : 0;
+    if (target === 0) { setDisplayed(0); return; }
+    const duration = 800;
+    const start = Date.now();
+    let rafId;
+    const animate = () => {
+      const elapsed = Date.now() - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setDisplayed(Math.round(target * eased));
+      if (progress < 1) rafId = requestAnimationFrame(animate);
+    };
+    const timer = setTimeout(() => { rafId = requestAnimationFrame(animate); }, delay * 1000);
+    return () => { clearTimeout(timer); cancelAnimationFrame(rafId); };
+  }, [value, delay]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay, type: "spring", bounce: 0.3 }}
+      className="bg-gray-800/60 border border-gray-700/50 rounded-xl p-4 backdrop-blur-sm flex flex-col items-center gap-1 min-w-25"
+    >
+      <span className="text-lg">{icon}</span>
+      <span className={`text-2xl font-black ${color}`}>
+        {displayed}{unit}
+      </span>
+      <span className="text-xs text-gray-400 font-mono uppercase tracking-wider">{label}</span>
+    </motion.div>
+  );
+}
 
 function ResultContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { playClick } = useAudio();
+  const { playClick, triggerVictoryFanfare, triggerDefeatDirge } = useAudio();
 
   const mode = searchParams.get("mode") || "word";
   const result = searchParams.get("result") || "lose";
   const stage = parseInt(searchParams.get("stage") || "1", 10);
   const difficulty = searchParams.get("difficulty") || "medium";
 
+  // Parse battle stats from URL
+  const avgWpm = parseInt(searchParams.get("wpm") || "0", 10);
+  const avgAcc = parseInt(searchParams.get("acc") || "0", 10);
+  const totalDealt = parseInt(searchParams.get("dealt") || "0", 10);
+  const totalTaken = parseInt(searchParams.get("taken") || "0", 10);
+  const bestCombo = parseInt(searchParams.get("combo") || "0", 10);
+  const roundsPlayed = parseInt(searchParams.get("rounds") || "0", 10);
+  const hasStats = roundsPlayed > 0;
+
   const isWin = result === "win";
   const isStoryVictory = mode === "story" && stage === 10 && isWin;
   const isStoryWin = mode === "story" && isWin && !isStoryVictory;
 
-  // Save progress when story stage is won
+  // Calculate star rating
+  const stars = useMemo(() => {
+    if (!hasStats) return isWin ? 1 : 0;
+    const hpRemaining = mode !== "sentence" ? MAX_HP - totalTaken : null;
+    return calculateStars({
+      isWin,
+      avgAccuracy: avgAcc,
+      hpRemaining,
+      cleanSweep: mode === "sentence" && totalTaken === 0 && isWin,
+    });
+  }, [isWin, hasStats, avgAcc, totalTaken, mode]);
+
+  // Save progress + stars when story stage is won
   useEffect(() => {
     if (mode === "story" && isWin) {
       unlockNextStage(stage);
+      if (hasStats) saveStageStars(stage, stars);
     }
-  }, [mode, isWin, stage]);
+  }, [mode, isWin, stage, hasStats, stars]);
+
+  // Play victory/defeat jingle
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isWin) {
+        triggerVictoryFanfare();
+      } else {
+        triggerDefeatDirge();
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRetry = () => {
     playClick();
@@ -90,16 +181,35 @@ function ResultContent() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.0 }}
-            className="text-gray-500 text-sm text-center max-w-md mb-8 font-mono"
+            className="text-gray-500 text-sm text-center max-w-md mb-6 font-mono"
           >
             The kingdom is saved. Your typing prowess is legendary.
           </motion.p>
+
+          {/* Star rating */}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.1 }} className="mb-4">
+            <StarRating stars={stars} delay={1.2} />
+          </motion.div>
+
+          {/* Battle stats */}
+          {hasStats && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.3 }}
+              className="grid grid-cols-3 gap-3 mb-8"
+            >
+              <StatCard label="WPM" value={avgWpm} icon="⚡" color="text-cyan-400" delay={1.4} />
+              <StatCard label="Accuracy" value={avgAcc} unit="%" icon="🎯" color="text-emerald-400" delay={1.5} />
+              <StatCard label="Best Combo" value={bestCombo} icon="🔥" color="text-orange-400" delay={1.6} />
+            </motion.div>
+          )}
 
           {/* Decorative stars */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 1.2 }}
+            transition={{ delay: 1.7 }}
             className="flex gap-2 mb-8"
           >
             {[...Array(5)].map((_, i) => (
@@ -107,7 +217,7 @@ function ResultContent() {
                 key={i}
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ delay: 1.3 + i * 0.1, type: "spring" }}
+                transition={{ delay: 1.8 + i * 0.1, type: "spring" }}
                 className="text-2xl text-yellow-400"
               >
                 ⭐
@@ -119,7 +229,7 @@ function ResultContent() {
           <motion.button
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.8 }}
+            transition={{ delay: 2.3 }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={handleMenu}
@@ -141,7 +251,7 @@ function ResultContent() {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", duration: 0.6, bounce: 0.5 }}
-          className="text-7xl mb-6"
+          className="text-7xl mb-4"
         >
           {isWin ? "🎉" : "💀"}
         </motion.div>
@@ -151,7 +261,7 @@ function ResultContent() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className={`text-4xl md:text-5xl font-bold mb-3 ${
+          className={`text-4xl md:text-5xl font-bold mb-2 ${
             isWin ? "text-emerald-400" : "text-red-400"
           }`}
         >
@@ -163,18 +273,46 @@ function ResultContent() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="text-gray-400 text-sm font-mono mb-8"
+          className="text-gray-400 text-sm font-mono mb-3"
         >
           {mode === "story" && `Story Mode — Stage ${stage}`}
           {mode === "sentence" && `Sentence Mode — ${difficulty}`}
           {mode === "word" && `Word Mode — ${difficulty}`}
         </motion.p>
 
+        {/* Star rating */}
+        {isWin && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="mb-4">
+            <StarRating stars={stars} delay={0.7} />
+          </motion.div>
+        )}
+
+        {/* Battle Stats Grid */}
+        {hasStats && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+            className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6 max-w-md w-full"
+          >
+            <StatCard label="WPM" value={avgWpm} icon="⚡" color="text-cyan-400" delay={0.9} />
+            <StatCard label="Accuracy" value={avgAcc} unit="%" icon="🎯" color="text-emerald-400" delay={1.0} />
+            <StatCard label="Best Combo" value={bestCombo} icon="🔥" color="text-orange-400" delay={1.1} />
+            {mode !== "sentence" && (
+              <>
+                <StatCard label="Dmg Dealt" value={totalDealt} icon="⚔️" color="text-yellow-400" delay={1.2} />
+                <StatCard label="Dmg Taken" value={totalTaken} icon="🛡️" color="text-red-400" delay={1.3} />
+              </>
+            )}
+            <StatCard label="Rounds" value={roundsPlayed} icon="🔄" color="text-purple-400" delay={1.4} />
+          </motion.div>
+        )}
+
         {/* Action buttons */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
+          transition={{ delay: hasStats ? 1.6 : 0.7 }}
           className="flex flex-col sm:flex-row gap-4"
         >
           {/* Retry button */}

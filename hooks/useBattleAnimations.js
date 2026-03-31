@@ -79,22 +79,8 @@ export function useBattleAnimations({ playHit }) {
     [playHit],
   );
 
-  /** Reset everything (e.g. on unmount or manual clear). */
-  const clearAnimations = useCallback(() => {
-    if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
-    if (completeTimerRef.current) clearTimeout(completeTimerRef.current);
-    setAnimState({
-      playerAttacking: false,
-      cpuAttacking: false,
-      playerHit: false,
-      cpuHit: false,
-      roundMessage: "",
-    });
-  }, []);
-
   return {
     ...animState,
     playAttackSequence,
-    clearAnimations,
   };
 }

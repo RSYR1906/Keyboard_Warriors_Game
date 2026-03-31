@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
 
 // ── Sword Clash Effect ────────────────────────────────────────
 export function SwordClashEffect() {
@@ -105,23 +104,90 @@ export function HitImpactEffect({ side = "right" }) {
   );
 }
 
-// ── Floating Particles (ambient) ──────────────────────────────
-export function AmbientParticles() {
-  const [particles] = useState(() =>
-    Array.from({ length: 20 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: 1 + Math.random() * 3,
-      duration: 4 + Math.random() * 6,
-      delay: Math.random() * 5,
-      color: Math.random() > 0.5 ? "rgba(56,189,248,0.3)" : "rgba(250,204,21,0.2)",
-    }))
+// ── Floating Damage Numbers ───────────────────────────────────
+export function DamageFloat({ damage, side = "right", isCrit = false }) {
+  const isRight = side === "right";
+  return (
+    <motion.div
+      initial={{ opacity: 1, y: 0, scale: 0.5 }}
+      animate={{ opacity: [1, 1, 0], y: -100, scale: [0.5, 1.4, 1.2] }}
+      transition={{ duration: 1.2, ease: "easeOut" }}
+      className={`absolute ${isRight ? "right-[22%]" : "left-[22%]"} top-[25%] z-40 pointer-events-none`}
+    >
+      <div className={`font-black drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] ${
+        isCrit
+          ? "text-4xl text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.6)]"
+          : isRight
+            ? "text-3xl text-cyan-400"
+            : "text-3xl text-red-400"
+      }`}>
+        -{damage}
+      </div>
+      {isCrit && (
+        <div className="text-xs font-bold text-yellow-300 text-center mt-1 tracking-wider">
+          CRITICAL!
+        </div>
+      )}
+    </motion.div>
   );
+}
+
+// ── Combo Display ─────────────────────────────────────────────
+export function ComboIndicator({ combo }) {
+  if (combo < 3) return null;
+
+  const tier = combo >= 20 ? 4 : combo >= 15 ? 3 : combo >= 10 ? 2 : 1;
+  const colors = [
+    "text-cyan-400",     // tier 1: 3-9
+    "text-emerald-400",  // tier 2: 10-14
+    "text-yellow-400",   // tier 3: 15-19
+    "text-orange-400",   // tier 4: 20+
+  ];
+  const glows = [
+    "",
+    "drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]",
+    "drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]",
+    "drop-shadow-[0_0_15px_rgba(249,115,22,0.6)]",
+  ];
 
   return (
+    <motion.div
+      key={combo}
+      initial={{ scale: 1.3, opacity: 0.8 }}
+      animate={{ scale: 1, opacity: 1 }}
+      className={`flex items-center gap-2 font-mono font-bold ${colors[tier - 1]} ${glows[tier - 1]}`}
+    >
+      <motion.span
+        className="text-lg"
+        animate={combo % 5 === 0 ? { scale: [1, 1.4, 1] } : {}}
+        transition={{ duration: 0.3 }}
+      >
+        🔥 {combo}x
+      </motion.span>
+      <span className="text-xs opacity-70 uppercase tracking-wider">
+        {tier >= 4 ? "UNSTOPPABLE" : tier >= 3 ? "ON FIRE" : tier >= 2 ? "GREAT" : "COMBO"}
+      </span>
+    </motion.div>
+  );
+}
+
+// ── Floating Particles (ambient) ──────────────────────────────
+
+// Deterministic particle data — avoids Math.random() which causes SSR/client hydration mismatch
+const AMBIENT_PARTICLES = Array.from({ length: 20 }, (_, i) => ({
+  id: i,
+  x: (i * 41 + 17) % 100,
+  y: (i * 29 + 11) % 100,
+  size: 1 + (i % 4),
+  duration: 4 + (i % 7),
+  delay: (i * 0.6) % 5,
+  color: i % 2 === 0 ? "rgba(56,189,248,0.3)" : "rgba(250,204,21,0.2)",
+}));
+
+export function AmbientParticles() {
+  return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-      {particles.map((p) => (
+      {AMBIENT_PARTICLES.map((p) => (
         <motion.div
           key={p.id}
           className="absolute rounded-full"

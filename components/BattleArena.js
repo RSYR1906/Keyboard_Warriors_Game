@@ -120,11 +120,11 @@ export default function BattleArena({
 
   useEffect(() => {
     if (playerAttacking || cpuAttacking) {
-      queueMicrotask(() => setShowClash(true));
+      setShowClash(true);
       const hideTimer = setTimeout(() => setShowClash(false), 400);
       return () => { clearTimeout(hideTimer); };
     }
-    queueMicrotask(() => setShowClash(false));
+    setShowClash(false);
   }, [playerAttacking, cpuAttacking]);
 
   return (

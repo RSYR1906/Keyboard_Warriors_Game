@@ -1,10 +1,12 @@
 "use client";
 
 import BattleArena from "@/components/BattleArena";
+import Countdown from "@/components/Countdown";
 import GameLayout from "@/components/GameLayout";
 import HealthBar from "@/components/HealthBar";
 import StageSplash from "@/components/StageSplash";
 import TypingBox from "@/components/TypingBox";
+import { ComboIndicator, DamageFloat } from "@/components/effects/BattleEffects";
 import { useGameState } from "@/context/GameContext";
 import { useAudio } from "@/hooks/useAudio";
 import { useBattleAnimations } from "@/hooks/useBattleAnimations";
@@ -14,7 +16,7 @@ import { PLAYER_NAME_KEY } from "@/lib/constants";
 import { getCpuConfig, MAX_HP } from "@/lib/cpuDifficulty";
 import { simulateCPU } from "@/lib/cpuEngine";
 import { getPromptText, getStageInfo } from "@/lib/gameEngine";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { memo, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
@@ -29,7 +31,10 @@ function BattleContent() {
   const urlStage = parseInt(searchParams.get("stage") || "1", 10);
 
   const game = useGameState();
-  const { playTyping, playAttack, playHit, playBGM, stopBGM } = useAudio();
+  const {
+    playTyping, playAttack, playHit, playBGM, stopBGM,
+    playCountdownTick, playCountdownGo, playComboMilestone,
+  } = useAudio();
 
   // ── Animation state (consolidated) ─────────────────────
   const {
@@ -42,7 +47,7 @@ function BattleContent() {
   } = useBattleAnimations({ playHit });
 
   // ── Local battle state ─────────────────────────────────
-  const [phase, setPhase] = useState("init"); // init | splash | active | finished
+  const [phase, setPhase] = useState("init"); // init | splash | countdown | active | finished
   const [currentText, setCurrentText] = useState("");
   const [sentenceIdx, setSentenceIdx] = useState(0);
   const [cpuResult, setCpuResult] = useState(null);
@@ -50,6 +55,8 @@ function BattleContent() {
   const [cpuProgress, setCpuProgress] = useState(0);
   const [initialized, setInitialized] = useState(false);
   const [playerName, setPlayerName] = useState("You");
+  const [shakeActive, setShakeActive] = useState(false);
+  const [damageFloats, setDamageFloats] = useState([]);
 
   // ── Refs for round lifecycle ───────────────────────────
   const cpuTimerRef = useRef(null);
@@ -58,24 +65,32 @@ function BattleContent() {
   const playerFinishedRef = useRef(false);
   const cpuFinishedRef = useRef(false);
 
+  // ── Battle stats accumulator ───────────────────────────
+  const battleStatsRef = useRef({
+    totalWpm: 0,
+    totalAccuracy: 0,
+    totalDamageDealt: 0,
+    totalDamageTaken: 0,
+    bestMaxCombo: 0,
+    roundsPlayed: 0,
+  });
+
   // ── Load player name from localStorage ─────────────────
   useEffect(() => {
     const saved = localStorage.getItem(PLAYER_NAME_KEY);
-    if (saved) queueMicrotask(() => setPlayerName(saved));
+    if (saved) setPlayerName(saved);
   }, []);
 
   // ── Initialize game on mount ───────────────────────────
   useEffect(() => {
     if (initialized) return;
-    queueMicrotask(() => {
-      setInitialized(true);
-      game.initGame({
-        mode: urlMode,
-        difficulty: urlDifficulty,
-        stage: urlStage,
-      });
-      setPhase(urlMode === "story" ? "splash" : "active");
+    setInitialized(true);
+    game.initGame({
+      mode: urlMode,
+      difficulty: urlDifficulty,
+      stage: urlStage,
     });
+    setPhase(urlMode === "story" ? "splash" : "countdown");
   }, [initialized, game, urlMode, urlDifficulty, urlStage]);
 
   // ── BGM lifecycle ──────────────────────────────────────
@@ -93,18 +108,16 @@ function BattleContent() {
     playerFinishedRef.current = false;
     cpuFinishedRef.current = false;
 
-    queueMicrotask(() => {
-      setCurrentText(
-        getPromptText(urlMode, {
-          difficulty: urlDifficulty,
-          stage: urlStage,
-          sentenceIdx,
-        }),
-      );
-      setCpuResult(null);
-      setPlayerResult(null);
-      setCpuProgress(0);
-    });
+    setCurrentText(
+      getPromptText(urlMode, {
+        difficulty: urlDifficulty,
+        stage: urlStage,
+        sentenceIdx,
+      }),
+    );
+    setCpuResult(null);
+    setPlayerResult(null);
+    setCpuProgress(0);
   }, [phase, sentenceIdx, urlMode, urlDifficulty, urlStage]);
 
   // ── CPU simulation ─────────────────────────────────────
@@ -148,7 +161,7 @@ function BattleContent() {
 
       // If player hasn't finished, inject a synthetic "didn't finish" result
       if (!playerFinishedRef.current) {
-        setPlayerResult({ completionTime: Infinity, wpm: 0, accuracy: 0, success: false });
+        setPlayerResult({ completionTime: Infinity, wpm: 0, accuracy: 0, maxCombo: 0, success: false });
       }
     });
 
@@ -169,10 +182,18 @@ function BattleContent() {
       if (!cpuFinishedRef.current) {
         if (cpuProgressRef.current) clearInterval(cpuProgressRef.current);
         setCpuProgress(100);
-        setCpuResult({ completionTime: Infinity, wpm: 0, accuracy: 0, success: false });
+        setCpuResult({ completionTime: Infinity, wpm: 0, accuracy: 0, maxCombo: 0, success: false });
       }
     },
     [playAttack],
+  );
+
+  // ── Combo milestone callback ───────────────────────────
+  const handleComboMilestone = useCallback(
+    (count) => {
+      playComboMilestone();
+    },
+    [playComboMilestone],
   );
 
   // ── Advance to the next round / sentence ───────────────
@@ -194,6 +215,12 @@ function BattleContent() {
     [game, urlMode],
   );
 
+  // ── Trigger screen shake ───────────────────────────────
+  const triggerShake = useCallback(() => {
+    setShakeActive(true);
+    setTimeout(() => setShakeActive(false), 400);
+  }, []);
+
   // ── Resolve round when both sides finish ───────────────
   const resolveRound = useCallback(() => {
     if (!playerResult || !cpuResult || roundResolvedRef.current) return;
@@ -209,6 +236,22 @@ function BattleContent() {
       sentenceIdx,
     });
 
+    // Accumulate battle stats
+    const stats = battleStatsRef.current;
+    stats.totalWpm += playerResult.wpm;
+    stats.totalAccuracy += playerResult.accuracy;
+    stats.roundsPlayed += 1;
+    if ((playerResult.maxCombo || 0) > stats.bestMaxCombo) {
+      stats.bestMaxCombo = playerResult.maxCombo || 0;
+    }
+    if (resolution.type === "hp") {
+      if (resolution.winner === "player") {
+        stats.totalDamageDealt += resolution.damage;
+      } else {
+        stats.totalDamageTaken += resolution.damage;
+      }
+    }
+
     // Apply game-state mutations
     if (resolution.type === "sentence") {
       game.recordRoundWin(resolution.winner);
@@ -216,11 +259,35 @@ function BattleContent() {
       game.applyDamage(resolution.damageTarget, resolution.damage);
     }
 
+    // Screen shake + damage float for HP modes
+    if (resolution.type === "hp") {
+      triggerShake();
+      const floatId = Date.now();
+      const isCrit = resolution.damage >= 30;
+      setDamageFloats((prev) => [
+        ...prev,
+        {
+          id: floatId,
+          damage: resolution.damage,
+          side: resolution.damageTarget === "player" ? "left" : "right",
+          isCrit,
+        },
+      ]);
+      setTimeout(() => {
+        setDamageFloats((prev) => prev.filter((f) => f.id !== floatId));
+      }, 1300);
+    }
+
     // Play the attack animation, then handle navigation or next round
     playAttackSequence(resolution.winner, resolution.message, () => {
       if (resolution.shouldStopBGM) stopBGM();
       if (resolution.navigateTo) {
-        router.push(resolution.navigateTo);
+        // Append battle stats to result URL
+        const s = battleStatsRef.current;
+        const avgWpm = s.roundsPlayed > 0 ? Math.round(s.totalWpm / s.roundsPlayed) : 0;
+        const avgAcc = s.roundsPlayed > 0 ? Math.round(s.totalAccuracy / s.roundsPlayed) : 0;
+        const statsQuery = `&wpm=${avgWpm}&acc=${avgAcc}&dealt=${s.totalDamageDealt}&taken=${s.totalDamageTaken}&combo=${s.bestMaxCombo}&rounds=${s.roundsPlayed}`;
+        router.push(resolution.navigateTo + statsQuery);
       } else {
         advanceToNextRound(resolution);
       }
@@ -237,6 +304,7 @@ function BattleContent() {
     stopBGM,
     playAttackSequence,
     advanceToNextRound,
+    triggerShake,
   ]);
 
   // Trigger resolution when both results are in
@@ -245,18 +313,24 @@ function BattleContent() {
   }, [playerResult, cpuResult, resolveRound]);
 
   // ── Typing hook ────────────────────────────────────────
-  const { input, handleChange, handleKeyDown, inputRef, isComplete, isReady } =
+  const { input, handleChange, handleKeyDown, inputRef, isComplete, isReady, combo } =
     useTyping({
       target: currentText || "",
       onComplete: handlePlayerComplete,
       active: phase === "active",
       onKeystroke: playTyping,
+      onComboMilestone: handleComboMilestone,
     });
+
+  // ── Countdown completion ───────────────────────────────
+  const handleCountdownComplete = useCallback(() => {
+    setPhase("active");
+  }, []);
 
   // ── Story splash timer ─────────────────────────────────
   useEffect(() => {
     if (phase !== "splash") return;
-    const timer = setTimeout(() => setPhase("active"), 2000);
+    const timer = setTimeout(() => setPhase("countdown"), 2000);
     return () => clearTimeout(timer);
   }, [phase]);
 
@@ -264,7 +338,15 @@ function BattleContent() {
 
   // ── Render ─────────────────────────────────────────────
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <motion.div
+      className="relative min-h-screen overflow-hidden"
+      animate={
+        shakeActive
+          ? { x: [0, -6, 6, -5, 5, -3, 3, 0], y: [0, -3, 3, -2, 2, 0] }
+          : {}
+      }
+      transition={{ duration: 0.4, ease: "easeOut" }}
+    >
       {/* Fullscreen Battle Arena (background layer) */}
       <BattleArena
         mode={urlMode}
@@ -277,12 +359,28 @@ function BattleContent() {
         playerName={playerName}
       />
 
+      {/* Floating damage numbers */}
+      <AnimatePresence>
+        {damageFloats.map((f) => (
+          <DamageFloat key={f.id} damage={f.damage} side={f.side} isCrit={f.isCrit} />
+        ))}
+      </AnimatePresence>
+
       {/* Stage Splash for Story Mode */}
       {urlMode === "story" && (
         <StageSplash
           stage={urlStage}
           title={stageInfo?.title || ""}
           visible={phase === "splash"}
+        />
+      )}
+
+      {/* Countdown overlay */}
+      {phase === "countdown" && (
+        <Countdown
+          onComplete={handleCountdownComplete}
+          playCountdownTick={playCountdownTick}
+          playCountdownGo={playCountdownGo}
         />
       )}
 
@@ -317,6 +415,13 @@ function BattleContent() {
               animate={{ opacity: 1, y: 0 }}
               className="w-full max-w-3xl mx-auto"
             >
+              {/* Combo indicator */}
+              <div className="flex justify-end mb-2 min-h-7">
+                <AnimatePresence>
+                  {combo >= 3 && <ComboIndicator combo={combo} />}
+                </AnimatePresence>
+              </div>
+
               <TypingBox
                 target={currentText}
                 input={input}
@@ -332,14 +437,14 @@ function BattleContent() {
             </motion.div>
           )}
 
-          {phase === "init" && (
+          {(phase === "init" || phase === "countdown") && (
             <div className="text-gray-400 font-mono animate-pulse text-center">
-              Preparing battle...
+              {phase === "init" ? "Preparing battle..." : ""}
             </div>
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

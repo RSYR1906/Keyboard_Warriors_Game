@@ -51,19 +51,6 @@ export function GameProvider({ children }) {
     });
   }, []);
 
-  // ── Story Mode: advance to next stage (resets HP) ───────
-  const advanceStage = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      currentStage: prev.currentStage + 1,
-      playerHP: MAX_HP,
-      cpuHP: MAX_HP,
-      phase: "splash",
-      round: 1,
-      result: null,
-    }));
-  }, []);
-
   // ── Sentence Mode: advance to next round ────────────────
   const advanceRound = useCallback(() => {
     setState((prev) => ({
@@ -80,55 +67,12 @@ export function GameProvider({ children }) {
     });
   }, []);
 
-  // ── Set battle phase ────────────────────────────────────
-  const setPhase = useCallback((phase) => {
-    setState((prev) => ({ ...prev, phase }));
-  }, []);
-
-  // ── Set game result ─────────────────────────────────────
-  const setResult = useCallback((result) => {
-    setState((prev) => ({
-      ...prev,
-      result,
-      gameStatus: "result",
-      phase: "finished",
-    }));
-  }, []);
-
-  // ── Reset for retry (preserves mode/difficulty/stage) ───
-  const resetForRetry = useCallback(() => {
-    setState((prev) => ({
-      ...defaultState,
-      mode: prev.mode,
-      difficulty: prev.difficulty,
-      currentStage: prev.currentStage,
-      playerHP: MAX_HP,
-      cpuHP: MAX_HP,
-      gameStatus: "playing",
-      phase: prev.mode === "story" ? "splash" : "active",
-      round: 1,
-      playerWins: 0,
-      cpuWins: 0,
-      result: null,
-    }));
-  }, []);
-
-  // ── Full reset back to menu ─────────────────────────────
-  const resetToMenu = useCallback(() => {
-    setState(defaultState);
-  }, []);
-
   const value = {
     ...state,
     initGame,
     applyDamage,
-    advanceStage,
     advanceRound,
     recordRoundWin,
-    setPhase,
-    setResult,
-    resetForRetry,
-    resetToMenu,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

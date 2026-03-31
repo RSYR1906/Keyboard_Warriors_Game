@@ -4,7 +4,7 @@ import { STORY_ENEMIES } from "@/components/characters/EnemyCharacter";
 import GameLayout from "@/components/GameLayout";
 import { useAudio } from "@/hooks/useAudio";
 import { CPU_STAGES } from "@/lib/cpuDifficulty";
-import { getUnlockedStage } from "@/lib/stageProgress";
+import { getStageStars, getUnlockedStage } from "@/lib/stageProgress";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -28,9 +28,16 @@ export default function StageSelect() {
   const router = useRouter();
   const { playClick, playModeSelect } = useAudio();
   const [unlockedStage, setUnlockedStage] = useState(1);
+  const [stageStars, setStageStars] = useState({});
 
   useEffect(() => {
-    queueMicrotask(() => setUnlockedStage(getUnlockedStage()));
+    setUnlockedStage(getUnlockedStage());
+    // Load star ratings for all stages
+    const stars = {};
+    for (let i = 1; i <= 10; i++) {
+      stars[i] = getStageStars(i);
+    }
+    setStageStars(stars);
   }, []);
 
   const handleStageClick = (stage) => {
@@ -88,10 +95,18 @@ export default function StageSelect() {
                   }
                 `}
               >
-                {/* Cleared badge */}
+                {/* Star rating or cleared badge */}
                 {isCleared && (
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg z-10">
-                    ✓
+                  <div className="absolute -top-2 -right-2 flex gap-0 z-10">
+                    {stageStars[stageNum] > 0 ? (
+                      [...Array(stageStars[stageNum])].map((_, i) => (
+                        <span key={i} className="text-xs text-yellow-400 drop-shadow-md">⭐</span>
+                      ))
+                    ) : (
+                      <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg">
+                        ✓
+                      </div>
+                    )}
                   </div>
                 )}
 
