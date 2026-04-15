@@ -378,11 +378,9 @@ export default function ResultPage() {
   return (
     <Suspense
       fallback={
-        <GameLayout>
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-gray-400 font-mono">Loading...</div>
-          </div>
-        </GameLayout>
+        <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+          <div className="text-gray-400 font-mono animate-pulse">Loading...</div>
+        </div>
       }
     >
       <ResultContent />

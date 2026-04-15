@@ -2,7 +2,6 @@
 
 import BattleArena from "@/components/BattleArena";
 import Countdown from "@/components/Countdown";
-import GameLayout from "@/components/GameLayout";
 import HealthBar from "@/components/HealthBar";
 import StageSplash from "@/components/StageSplash";
 import TypingBox from "@/components/TypingBox";
@@ -216,6 +215,12 @@ function BattleContent() {
     };
   }, [phase, currentText, urlMode, urlStage, urlDifficulty]);
 
+  // ── Trigger screen shake ───────────────────────────────
+  const triggerShake = useCallback(() => {
+    setShakeActive(true);
+    setTimeout(() => setShakeActive(false), 400);
+  }, []);
+
   // ── Player typing completion ───────────────────────────
   const handlePlayerComplete = useCallback(
     (stats) => {
@@ -290,12 +295,6 @@ function BattleContent() {
     },
     [game, urlMode],
   );
-
-  // ── Trigger screen shake ───────────────────────────────
-  const triggerShake = useCallback(() => {
-    setShakeActive(true);
-    setTimeout(() => setShakeActive(false), 400);
-  }, []);
 
   // ── Resolve round when both sides finish ───────────────
   const resolveRound = useCallback(() => {
@@ -651,11 +650,9 @@ export default function BattlePage() {
   return (
     <Suspense
       fallback={
-        <GameLayout>
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-gray-400 font-mono animate-pulse">Loading battle...</div>
-          </div>
-        </GameLayout>
+        <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+          <div className="text-gray-400 font-mono animate-pulse">Loading battle...</div>
+        </div>
       }
     >
       <BattleContent />
